@@ -2,7 +2,7 @@ import { OpenAI } from "openai";
 
 export default async function handler(req, res) {
   // CORS: allow your Squarespace domain to call this endpoint
-  res.setHeader("Access-Control-Allow-Origin", "https://valcline.com");
+  res.setHeader("Access-Control-Allow-Origin", "https://www.valcline.com");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
