@@ -35,8 +35,18 @@ Keep it human and kind.`;
 
     const text = response.output_text ?? "Hmm, I’m quiet today.";
     return res.status(200).json({ text });
-  } catch (err) {
-    console.error("Server error:", err);
-    return res.status(500).json({ error: "Server error" });
+
+} catch (err) {
+  const status = err?.status || 500;
+  const code = err?.code || err?.error?.code;
+  if (status === 429 || code === "insufficient_quota") {
+    // Friendly fallback while you enable billing
+    return res.status(200).json({
+      text: "Esby’s kettle is empty for a moment. Try again shortly, or check back once I’ve refilled the account."
+    });
   }
+  console.error("Esby server error:", status, err?.message, err?.error?.message);
+  return res.status(status).json({ error: err?.message || "Server error" });
+}
+
 }
