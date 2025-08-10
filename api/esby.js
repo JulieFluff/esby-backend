@@ -70,7 +70,7 @@ export default async function handler(req, res) {
     if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: "Missing OPENAI_API_KEY on server" });
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const model = process.env.OPENAI_MODEL || "gpt-4o";
 
     // Build conversation: system + history + latest user
     const input = [{ role: "system", content: ESBY_SYSTEM }];
