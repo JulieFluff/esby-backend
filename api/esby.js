@@ -87,7 +87,7 @@ export default async function handler(req, res) {
       model,
       input,
       temperature: 0.7,
-      presence_penalty: 0.3
+    
     });
 
     const text = response.output_text ?? "Hmm, I’m quiet today.";
