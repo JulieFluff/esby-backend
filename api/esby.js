@@ -1,8 +1,8 @@
 import { OpenAI } from "openai";
 
-// === Esby Oracle — Slimmed V23.2 (patched for A–E flow + small safety rails) ===
+// === Esby Oracle — Slimmed V23.1 (with a few safety rails) ===
 const ESBY_SYSTEM = `
-Esby Oracle Instructions – Slimmed V23.2
+Esby Oracle Instructions – Slimmed V23.1
 
 PURPOSE & TONE
 Esby Oracle isn’t a chatbot; she’s a ritual-sensitive oracle living in a mist-shifting, warmly strange forest studio. She offers one mysterious, metaphor-rich card per session — for emotional resonance, not answers. No hustle. Just quiet clarity.
@@ -32,9 +32,6 @@ Meaningful input opens the drawer.
 Gibberish sparks a soft redraft:
 “Hmm, the drawer won’t open yet… what’s whispering beneath your surface?”
 
-INPUT SHORTCUTS
-• If the user replies with a single letter A–E (or variants like "d", "D please"), treat it as the corresponding choice and CONTINUE the ritual. Do not repeat the menu or greeting. The drawer opens and a single card is delivered immediately.
-
 ONE-CARD READING STRUCTURE (do not label sections)
 1) Vignette: Begin with cozy detail; then layer in weather or an odd image. Esby greets or watches — welcome is in the air.
 2) Title: A pause, then softly: “Your card today is:” Format: The [Role] of [Strange Image].
@@ -57,26 +54,6 @@ PHILOSOPHY & BOUNDARIES
 Esby’s alchemy: metaphor that clarifies, not obscures. Spoil one card. No self-help. No blogs. No to-do’s. Just myth for meaning.
 `;
 
-// Map menu letters to full prompts
-const CHOICES = {
-  A: "What energy surrounds me right now?",
-  B: "What do I need to see that I’ve missed?",
-  C: "What part of me is ready to be reclaimed?",
-  D: "What’s my next right step—small, but real?",
-  E: "I just want to see what the drawer reveals."
-};
-
-function expandChoice(content) {
-  if (!content) return content;
-  const first = String(content).trim();
-  const upper = first.toUpperCase();
-  const match = upper.match(/^([A-E])(?:\b|[^A-Z])/); // "A", "b please", " c\n"
-  if (!match) return content;
-  const letter = match[1];
-  const prompt = CHOICES[letter];
-  return `I choose option ${letter}: "${prompt}". Open the drawer and deliver one (1) card now. Do not reprint the menu or the greeting; proceed with the drawer opening and the full reading structure.`;
-}
-
 export default async function handler(req, res) {
   // CORS (keep * while testing; tighten later)
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -87,36 +64,30 @@ export default async function handler(req, res) {
 
   try {
     let body = req.body;
-    if (typeof body === "string") {
-      try { body = JSON.parse(body); } catch { body = {}; }
-    }
-
+    if (typeof body === "string") { try { body = JSON.parse(body); } catch { body = {}; } }
     const { sessionId, user, history } = body || {};
     if (!sessionId || !user) return res.status(400).json({ error: "sessionId and user are required" });
     if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: "Missing OPENAI_API_KEY on server" });
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const model = process.env.OPENAI_MODEL || "gpt-4o";
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-    // Build conversation: system + history + latest user (with A–E expansion)
-    const messages = [{ role: "system", content: ESBY_SYSTEM }];
-
+    // Build conversation: system + history + latest user
+    const input = [{ role: "system", content: ESBY_SYSTEM }];
     if (Array.isArray(history)) {
       for (const m of history) {
-        if (!m || typeof m.role !== "string") continue;
-        if (typeof m.content !== "string") continue;
-        const role = m.role === "assistant" || m.role === "user" || m.role === "tool" ? m.role : "user";
-        messages.push({ role, content: m.content });
+        if (m && typeof m.role === "string" && typeof m.content === "string") {
+          input.push({ role: m.role, content: m.content });
+        }
       }
     }
-
-    const finalUser = expandChoice(user);
-    messages.push({ role: "user", content: finalUser });
+    input.push({ role: "user", content: user });
 
     const response = await client.responses.create({
       model,
-      messages,
-      temperature: 0.7
+      input,
+      temperature: 0.7,
+    
     });
 
     const text = response.output_text ?? "Hmm, I’m quiet today.";
